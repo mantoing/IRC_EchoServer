@@ -39,6 +39,7 @@ int main(void)
 		보통 network 개발자들은 big endian을 사용해서 개발 -> 하지만 intel mac에서는 little endian을 사용
 		따라서 big endian을 사용하는 것
 		big endian을 사용한다면 굳이 함수를 호출할 필요가 없다.
+		bind()함수에서 INADDR_ANY를 사용하게 된다면 모든 네트워크 인터페이스에 들어오는 연결을 수락할 수 있다.
 	*/
 	if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1)
 	{
@@ -103,8 +104,24 @@ int main(void)
 				} else {
 					flags = fcntl(clientSocket, F_GETFL, 0);
 					fcntl(clientSocket, F_SETFL, flags | O_NONBLOCK);
+					/*
+						파일 디스크립터의 특정 속성을 설정하거나 가져올때 사용 우리의 코드에서는 non-blocking처리를 하기위해 사용
+						1. F_GETFL : 파일상태의 플래그를 가져온다.
+						2. F_SETFL : 파일상태의 플래그를 설정한다.
+					*/
 
 					EV_SET(&change, clientSocket, EVFILT_READ, EV_ADD, 0, 0, NULL);
+					/*
+						kqueue 메커니즘을 활용하여 소켓 클라이언트의 읽기 가능한 이벤트를 모니터링하는데 사용된다.
+						1. &change : 추가하거나 수정하려는 이벤트에 대한 정보를 포함한다.
+						2. clientSocket: 이벤트를 모니터링하려는 소켓 클라이언트의 파일 디스크립터
+						3. EVFILT_READ : 읽기 가능한 이벤트를 나타낸다.
+						4. EV_ADD : 이벤트 액션으로, 지정된 이벤트를 모니터링 대상에 추가하려는 것 나타냅니다.
+						5. 0 : 이벤트 플래그로 여기선 사용 x
+						6. 0 : 이벤트 필터의 동작을 구체화 하기 위해서 사용
+						7. NULL : 타임아웃을 설정한다.
+					*/
+
 
 					if (kevent(kq, &change, 1, NULL, 0, NULL) < 0) {
 						std::cerr << "Failed to register client socket with kqueue" << std::endl;
